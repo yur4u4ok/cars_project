@@ -5,6 +5,7 @@ from django.core.validators import MaxValueValidator
 from datetime import datetime
 
 from apps.users.models import UserModel as User
+from core.services.upload_car_photo_service import upload_to
 
 UserModel: User = get_user_model()
 
@@ -20,4 +21,5 @@ class AdvertisementModel(models.Model):
     description = models.TextField()
     is_active = models.BooleanField(default=True)
     warnings = models.IntegerField(default=0)
+    photo = models.ImageField(upload_to=upload_to, blank=True)
     user = models.ForeignKey(UserModel, on_delete=models.CASCADE, related_name='advertisements')
