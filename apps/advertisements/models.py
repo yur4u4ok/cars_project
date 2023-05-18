@@ -13,6 +13,7 @@ UserModel: User = get_user_model()
 class AdvertisementModel(models.Model):
     class Meta:
         db_table = 'advertisements'
+        ordering = ("id", )
 
     MODELS_CHOICES = [
         ('BMW', 'BMW'), ('Volvo', 'Volvo'), ('Mercedes', 'Mercedes'), ('Daewoo', 'Daewoo'),

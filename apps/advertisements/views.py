@@ -4,13 +4,17 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 
-from math import floor
 from django.db.models import Sum
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_cookie
 
 from core.permissions.is_manager import IsManager
 from .models import AdvertisementModel, AdvertisementPhotoModel
 from .serializers import AdvertisementSerializer, AdvertPhotoSerializer
 from core.check_for_bad_words.bad_words_in_description import check_for_bad_words
+
+from math import floor
 
 
 class ListAllAdvertsView(ListAPIView):
@@ -41,10 +45,10 @@ class ListCreateAdvertsView(ListCreateAPIView):
     serializer_class = AdvertisementSerializer
 
     def post(self, *args, **kwargs):
-        queryset = AdvertisementModel.objects.filter(user=self.request.user, is_active=True)
+        queryset = AdvertisementModel.objects.filter(user=self.request.user, is_active=True).count()
         data = self.request.data
 
-        if not self.request.user.premium and (len(queryset) > 0):
+        if not self.request.user.premium and queryset > 0:
             return Response("You should have a premium account to post more than 1 ad",
                             status.HTTP_400_BAD_REQUEST)
 
@@ -141,8 +145,8 @@ class ActivateAdvertView(GenericAPIView):
         if advert.is_active:
             return Response('Already activated', status.HTTP_400_BAD_REQUEST)
 
-        queryset = AdvertisementModel.objects.filter(user=self.request.user, is_active=True)
-        if len(queryset) > 0 and not self.request.user.premium:
+        queryset = AdvertisementModel.objects.filter(user=self.request.user, is_active=True).count()
+        if queryset > 0 and not self.request.user.premium:
             return Response("You should have a premium account to post more than 1 ad",
                             status.HTTP_400_BAD_REQUEST)
 
@@ -184,6 +188,8 @@ class InformationAboutAdvertView(GenericAPIView):
     def get_queryset(self):
         return AdvertisementModel.objects.filter(user=self.request.user, is_active=True)
 
+    @method_decorator(cache_page(60 * 0.3))
+    @method_decorator(vary_on_cookie)
     def get(self, *args, **kwargs):
         advert = self.get_object()
 
@@ -206,8 +212,8 @@ class InformationAboutAdvertView(GenericAPIView):
 
         # FOR COUNT AVERAGE PRICE IN USD IN CITY
         queryset_sum_city = AdvertisementModel.objects.filter(is_active=True, city=city, car_model=car_model,
-                                                              car_brand=car_brand).aggregate(Sum('price'))
-        price_sum_in_city = queryset_sum_city['price__sum'] - price + price_in_usd
+                                                              car_brand=car_brand).aggregate(Sum('price'))['price__sum']
+        price_sum_in_city = queryset_sum_city - price + price_in_usd
 
         queryset_count_in_city = AdvertisementModel.objects.filter(is_active=True, city=city, car_model=car_model,
                                                                    car_brand=car_brand).count()
@@ -215,8 +221,9 @@ class InformationAboutAdvertView(GenericAPIView):
 
         # FOR COUNT AVERAGE PRICE IN USD IN UKRAINE
         queryset_for_country = AdvertisementModel.objects.filter(is_active=True, car_model=car_model,
-                                                                 car_brand=car_brand).aggregate(Sum('price'))
-        price_sum_in_country = queryset_for_country['price__sum'] - price + price_in_usd
+                                                                 car_brand=car_brand).aggregate(
+            Sum('price'))['price__sum']
+        price_sum_in_country = queryset_for_country - price + price_in_usd
 
         queryset_count_in_country = AdvertisementModel.objects.filter(is_active=True, car_model=car_model,
                                                                       car_brand=car_brand).count()
@@ -232,14 +239,16 @@ class InformationAboutAdvertView(GenericAPIView):
 
 # FOR MANAGER
 class ListSuspiciousAdvertsView(ListAPIView):
-    queryset = AdvertisementModel.objects.filter(warnings__in=[num for num in range(31) if num % 3 == 0])
+    queryset = AdvertisementModel.objects.filter(warnings__in=[num for num in range(31) if num % 3 == 0 and num > 0],
+                                                 is_active=False)
     serializer_class = AdvertisementSerializer
     permission_classes = (IsManager,)
 
 
 # FOR MANAGER
 class ApproveSuspiciousAdvertsView(GenericAPIView):
-    queryset = AdvertisementModel.objects.filter(warnings__in=[num for num in range(31) if num % 3 == 0])
+    queryset = AdvertisementModel.objects.filter(warnings__in=[num for num in range(31) if num % 3 == 0 and num > 0],
+                                                 is_active=False)
     serializer_class = AdvertisementSerializer
     permission_classes = (IsManager,)
 
