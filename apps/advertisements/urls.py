@@ -3,7 +3,7 @@ from django.urls import path
 from .views import ListAllAdvertsView, ListCreateAdvertsView, \
     UpdateAdvertView, ActivateAdvertView, ApproveSuspiciousAdvertsView, DestroyInvalidAdvertView, \
     ListSuspiciousAdvertsView, GetAdvertView, DeactivateAdvertView, AdvertAddPhotoView, \
-    AdvertDeletePhotoView, DeleteAdvertView
+    AdvertDeletePhotoView, DeleteAdvertView, InformationAboutAdvertView
 
 urlpatterns = [
     path('', ListAllAdvertsView.as_view(), name='list_all_adverts'),
@@ -17,6 +17,7 @@ urlpatterns = [
     path('/<int:pk>/delete_photo', AdvertDeletePhotoView.as_view(), name='delete_photo'),
     path('/<int:pk>/activate', ActivateAdvertView.as_view(), name='activate_advert'),
     path('/<int:pk>/deactivate', DeactivateAdvertView.as_view(), name='deactivate_advert'),
+    path('/<int:pk>/info', InformationAboutAdvertView.as_view(), name='info_about_advert'),
 
     # FOR MANAGER
     path('/suspicious', ListSuspiciousAdvertsView.as_view(), name='list_suspicious_adverts'),

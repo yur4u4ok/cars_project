@@ -4,6 +4,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 
+from math import floor
+from django.db.models import Sum
+
 from core.permissions.is_manager import IsManager
 from .models import AdvertisementModel, AdvertisementPhotoModel
 from .serializers import AdvertisementSerializer, AdvertPhotoSerializer
@@ -20,6 +23,15 @@ class GetAdvertView(RetrieveAPIView):
     queryset = AdvertisementModel.objects.filter(is_active=True)
     serializer_class = AdvertisementSerializer
     permission_classes = (AllowAny,)
+
+    def get(self, *args, **kwargs):
+        advert = self.get_object()
+        advert.views += 1
+        advert.save()
+
+        serializer = self.get_serializer(advert)
+
+        return Response(serializer.data, status.HTTP_200_OK)
 
 
 class ListCreateAdvertsView(ListCreateAPIView):
@@ -41,11 +53,14 @@ class ListCreateAdvertsView(ListCreateAPIView):
 
         if check_for_bad_words(data):
             serializer.validated_data['warnings'] = 1
-            serializer.save(user=self.request.user, is_active=False)
+            serializer.save(user=self.request.user, car_brand=data['car_brand'].upper(),
+                            car_model=data['car_model'].upper(), city=data['city'].upper(), is_active=False)
+
             return Response(f"Description cant contain bad words! To active your ad - edit this in your ads",
                             status.HTTP_201_CREATED)
 
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, car_brand=data['car_brand'].upper(),
+                        car_model=data['car_model'].upper(), city=data['city'].upper())
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -163,6 +178,56 @@ class DeactivateAdvertView(GenericAPIView):
 
         serializer = AdvertisementSerializer(advert)
         return Response(serializer.data, status.HTTP_200_OK)
+
+
+class InformationAboutAdvertView(GenericAPIView):
+    def get_queryset(self):
+        return AdvertisementModel.objects.filter(user=self.request.user, is_active=True)
+
+    def get(self, *args, **kwargs):
+        advert = self.get_object()
+
+        if not self.request.user.premium:
+            return Response("You should have a premium account to get additional information",
+                            status.HTTP_400_BAD_REQUEST)
+
+        city = advert.city
+        car_brand = advert.car_brand
+        car_model = advert.car_model
+        currency = advert.currency
+        price = advert.price
+
+        price_in_usd = price
+
+        if currency == 'EUR':
+            price_in_usd = price * 1.074
+        if currency == 'UAH':
+            price_in_usd = price / 37.453
+
+        # FOR COUNT AVERAGE PRICE IN USD IN CITY
+        queryset_sum_city = AdvertisementModel.objects.filter(is_active=True, city=city, car_model=car_model,
+                                                              car_brand=car_brand).aggregate(Sum('price'))
+        price_sum_in_city = queryset_sum_city['price__sum'] - price + price_in_usd
+
+        queryset_count_in_city = AdvertisementModel.objects.filter(is_active=True, city=city, car_model=car_model,
+                                                                   car_brand=car_brand).count()
+        price_avg_in_city = floor(price_sum_in_city / queryset_count_in_city)
+
+        # FOR COUNT AVERAGE PRICE IN USD IN UKRAINE
+        queryset_for_country = AdvertisementModel.objects.filter(is_active=True, car_model=car_model,
+                                                                 car_brand=car_brand).aggregate(Sum('price'))
+        price_sum_in_country = queryset_for_country['price__sum'] - price + price_in_usd
+
+        queryset_count_in_country = AdvertisementModel.objects.filter(is_active=True, car_model=car_model,
+                                                                      car_brand=car_brand).count()
+        price_avg_in_country = floor(price_sum_in_country / queryset_count_in_country)
+
+        # FOR GET VIEWS
+        views = advert.views
+
+        return Response({f'Average price(USD) in {city}': price_avg_in_city,
+                         f'Average price(USD) in UKRAINE': price_avg_in_country,
+                         f'Count of views': views}, status.HTTP_200_OK)
 
 
 # FOR MANAGER

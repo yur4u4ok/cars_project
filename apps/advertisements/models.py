@@ -37,6 +37,7 @@ class AdvertisementModel(models.Model):
     city = models.CharField(max_length=30)
     is_active = models.BooleanField(default=True)
     warnings = models.IntegerField(default=0)
+    views = models.IntegerField(default=0)
     user = models.ForeignKey(UserModel, on_delete=models.CASCADE, related_name='advertisements')
 
 

@@ -25,5 +25,5 @@ class AdvertisementSerializer(ModelSerializer):
     class Meta:
         model = AdvertisementModel
         fields = ('id', 'car_brand', 'car_model', 'year', 'price', 'currency', 'description',
-                  'city', 'is_active', 'warnings', 'photos', 'user')
-        read_only_fields = ('id', 'is_active', 'warnings', 'user')
+                  'city', 'is_active', 'warnings', 'photos', 'views', 'user')
+        read_only_fields = ('id', 'is_active', 'warnings', 'views', 'user')
