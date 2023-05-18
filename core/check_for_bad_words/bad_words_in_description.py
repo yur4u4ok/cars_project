@@ -1,5 +1,5 @@
 def check_for_bad_words(data):
-    list_of_bad_words = ['fuck', 'suck', 'dick', 'pussy', 'anos', 'shit', 'ass']
+    list_of_bad_words = ['fuck', 'suck', 'dick', 'pussy', 'anos', 'shit', 'ass', 'fucking']
 
     try:
         desc = data.get('description', False)
