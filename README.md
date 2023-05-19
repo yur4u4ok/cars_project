@@ -1,4 +1,4 @@
-# cars_project
+# Django cars_project
 
 AutoRia clone
 
