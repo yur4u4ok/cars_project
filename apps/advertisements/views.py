@@ -9,21 +9,34 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie
 
+from drf_yasg.utils import swagger_auto_schema
+
+from math import floor
+
 from core.permissions.is_manager import IsManager
 from .models import AdvertisementModel, AdvertisementPhotoModel
 from .serializers import AdvertisementSerializer, AdvertPhotoSerializer
 from core.check_for_bad_words.bad_words_in_description import check_for_bad_words
 
-from math import floor
+from .swagger.decorators import advert_swagger
+from .swagger.serializers import SwaggerAdvertSerializer
 
 
+@method_decorator(swagger_auto_schema(security=[]), 'get')
 class ListAllAdvertsView(ListAPIView):
+    """
+    Get all adverts
+    """
     queryset = AdvertisementModel.objects.filter(is_active=True)
     serializer_class = AdvertisementSerializer
     permission_classes = (AllowAny,)
 
 
+@method_decorator(swagger_auto_schema(security=[]), 'get')
 class GetAdvertView(RetrieveAPIView):
+    """
+    Get advert by id
+    """
     queryset = AdvertisementModel.objects.filter(is_active=True)
     serializer_class = AdvertisementSerializer
     permission_classes = (AllowAny,)
@@ -39,6 +52,13 @@ class GetAdvertView(RetrieveAPIView):
 
 
 class ListCreateAdvertsView(ListCreateAPIView):
+    """
+    get:
+        Get all adverts of registered user
+    post:
+        Post advert
+    """
+
     def get_queryset(self):
         return AdvertisementModel.objects.filter(user=self.request.user)
 
@@ -70,9 +90,15 @@ class ListCreateAdvertsView(ListCreateAPIView):
 
 
 class UpdateAdvertView(GenericAPIView):
+    """
+    Update advert
+    """
     def get_queryset(self):
-        return AdvertisementModel.objects.filter(user=self.request.user)
+        return AdvertisementModel.objects.filter(user_id=self.request.user.id)
 
+    serializer_class = AdvertisementSerializer
+
+    @swagger_auto_schema(responses={status.HTTP_200_OK: SwaggerAdvertSerializer()})
     def patch(self, *args, **kwargs):
         advert = self.get_object()
         data = self.request.data
@@ -81,7 +107,7 @@ class UpdateAdvertView(GenericAPIView):
             return Response("This ad can no longer be edited...Wait for the manager verdict!",
                             status.HTTP_400_BAD_REQUEST)
 
-        serializer = AdvertisementSerializer(advert, data, partial=True)
+        serializer = self.get_serializer(advert, data, partial=True)
         serializer.is_valid(raise_exception=True)
 
         if check_for_bad_words(data):
@@ -101,21 +127,31 @@ class UpdateAdvertView(GenericAPIView):
 
 
 class DeleteAdvertView(DestroyAPIView):
+    """
+    Delete advert
+    """
+
     def get_queryset(self):
-        return AdvertisementModel.objects.filter(user=self.request.user)
+        return AdvertisementModel.objects.filter(user_id=self.request.user.id)
 
     serializer_class = AdvertisementSerializer
 
 
 class AdvertAddPhotoView(GenericAPIView):
-    def get_queryset(self):
-        return AdvertisementModel.objects.filter(user=self.request.user)
+    """
+    Post photo to advert
+    """
+    serializer_class = AdvertPhotoSerializer
 
+    def get_queryset(self):
+        return AdvertisementModel.objects.filter(user_id=self.request.user.id)
+
+    @swagger_auto_schema(responses={status.HTTP_201_CREATED: SwaggerAdvertSerializer()})
     def post(self, *args, **kwargs):
         files = self.request.FILES
         advert = self.get_object()
         for key in files:
-            serializer = AdvertPhotoSerializer(data={'photo': files[key]})
+            serializer = self.get_serializer(data={'photo': files[key]})
             serializer.is_valid(raise_exception=True)
             serializer.save(advert=advert)
         serializer = AdvertisementSerializer(advert)
@@ -123,8 +159,12 @@ class AdvertAddPhotoView(GenericAPIView):
 
 
 class AdvertDeletePhotoView(DestroyAPIView):
+    """
+    Delete photo from advert
+    """
+
     def get_queryset(self):
-        return AdvertisementPhotoModel.objects.filter(advert__user=self.request.user)
+        return AdvertisementPhotoModel.objects.filter(advert__user_id=self.request.user.id)
 
     serializer_class = AdvertisementSerializer
 
@@ -134,9 +174,17 @@ class AdvertDeletePhotoView(DestroyAPIView):
         photo.delete()
 
 
+@advert_swagger()
 class ActivateAdvertView(GenericAPIView):
+    """
+    Activate advert
+    """
+
     def get_queryset(self):
-        return AdvertisementModel.objects.filter(user=self.request.user)
+        return AdvertisementModel.objects.filter(user_id=self.request.user.id)
+
+    def get_serializer(self, *args, **kwargs):
+        pass
 
     def patch(self, *args, **kwargs):
         advert = self.get_object()
@@ -171,9 +219,17 @@ class ActivateAdvertView(GenericAPIView):
         return Response(serializer.data, status.HTTP_200_OK)
 
 
+@advert_swagger()
 class DeactivateAdvertView(GenericAPIView):
+    """
+    Deactivate advert
+    """
+
     def get_queryset(self):
-        return AdvertisementModel.objects.filter(user=self.request.user)
+        return AdvertisementModel.objects.filter(user_id=self.request.user.id)
+
+    def get_serializer(self, *args, **kwargs):
+        pass
 
     def patch(self, *args, **kwargs):
         advert = self.get_object()
@@ -185,8 +241,15 @@ class DeactivateAdvertView(GenericAPIView):
 
 
 class InformationAboutAdvertView(GenericAPIView):
+    """
+    Get additional information about advert
+    """
+
     def get_queryset(self):
-        return AdvertisementModel.objects.filter(user=self.request.user, is_active=True)
+        return AdvertisementModel.objects.filter(user_id=self.request.user.id, is_active=True)
+
+    def get_serializer(self, *args, **kwargs):
+        pass
 
     @method_decorator(cache_page(60 * 0.3))
     @method_decorator(vary_on_cookie)
@@ -239,6 +302,9 @@ class InformationAboutAdvertView(GenericAPIView):
 
 # FOR MANAGER
 class ListSuspiciousAdvertsView(ListAPIView):
+    """
+    Get all suspicious adverts(for manager)
+    """
     queryset = AdvertisementModel.objects.filter(warnings__in=[num for num in range(31) if num % 3 == 0 and num > 0],
                                                  is_active=False)
     serializer_class = AdvertisementSerializer
@@ -247,11 +313,18 @@ class ListSuspiciousAdvertsView(ListAPIView):
 
 # FOR MANAGER
 class ApproveSuspiciousAdvertsView(GenericAPIView):
+    """
+    Approve suspicious advert(for manager)
+    """
     queryset = AdvertisementModel.objects.filter(warnings__in=[num for num in range(31) if num % 3 == 0 and num > 0],
                                                  is_active=False)
-    serializer_class = AdvertisementSerializer
+
+    def get_serializer(self, *args, **kwargs):
+        pass
+
     permission_classes = (IsManager,)
 
+    @swagger_auto_schema(responses={status.HTTP_200_OK: SwaggerAdvertSerializer()})
     def patch(self, *args, **kwargs):
         advert = self.get_object()
 
@@ -261,12 +334,15 @@ class ApproveSuspiciousAdvertsView(GenericAPIView):
         advert.is_active = True
         advert.save()
 
-        serializer = self.get_serializer(advert)
+        serializer = AdvertisementSerializer(advert)
         return Response(serializer.data, status.HTTP_200_OK)
 
 
 # FOR MANAGER
 class DestroyInvalidAdvertView(DestroyAPIView):
+    """
+    Delete invalid advert(for manager)
+    """
     queryset = AdvertisementModel.objects.filter(is_active=False)
     serializer_class = AdvertisementSerializer
     permission_classes = (IsManager,)

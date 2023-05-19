@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
+from django.core.validators import MinLengthValidator
 
 from .managers import UserManager
 
@@ -27,5 +28,6 @@ class ProfileModel(models.Model):
 
     name = models.CharField(max_length=30)
     surname = models.CharField(max_length=30)
-    age = models.IntegerField()
+    age = models.PositiveIntegerField()
+    phone = models.CharField(validators=[MinLengthValidator(12)], max_length=12)
     user = models.OneToOneField(UserModel, on_delete=models.CASCADE, related_name='profile')
