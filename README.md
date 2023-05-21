@@ -4,4 +4,4 @@ AutoRia clone
 
 To run:
 - add pipenv 
-- write to terminal "docker compose -f docker-compose-dev.yml up --build"
+- write to terminal "docker compose up --build"
