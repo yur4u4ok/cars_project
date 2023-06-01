@@ -14,7 +14,7 @@ Project is created with:
 * MySQL
 * Docker
 * REST API
-* nginx
+* Nginx
 * Swagger
 
 ## Setup
