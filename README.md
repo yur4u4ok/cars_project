@@ -1,7 +1,23 @@
-# Django cars_project
+# Django AutoRia clone cars_project
 
-AutoRia clone
+## Table of contents
+* [General info](#general-info)
+* [Technologies](#technologies)
+* [Setup](#setup)
 
-To run:
+## General info
+This is a cars project where sellers post car ads and buyers can view those ads and contact sellers.
+
+## Technologies
+Project is created with:
+* DRF
+* MySQL
+* Docker
+* REST API
+* Swagger
+
+## Setup
+To run this project: 
+
 - add pipenv 
 - write to terminal "docker compose up --build"
